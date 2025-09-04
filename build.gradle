@@ -1,0 +1,81 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'net.anatomyworld.hfd'
+version = '1.0-SNAPSHOT'
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(17) }
+}
+
+repositories { mavenCentral() }
+
+dependencies {
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.17.1'
+    implementation "com.formdev:flatlaf:3.5"
+
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+application { mainClass = 'net.anatomyworld.hfd.Main' }
+tasks.test { useJUnitPlatform() }
+
+/** External files on disk */
+def installerFile = file('installer/neoforge-21.8.39-installer.jar') // put it here
+
+/** Sanity check */
+tasks.register('verifyInstallerFile') {
+    inputs.file(installerFile)
+    doLast {
+        if (!installerFile.exists()) {
+            throw new GradleException("Missing ${installerFile}. Put your NeoForge installer there (or change installerFile path).")
+        }
+    }
+}
+
+/** Add extras to resources output, renaming *.jar -> *.jar.bin so Shadow won't merge them */
+tasks.named('processResources', Copy) {
+    dependsOn 'verifyInstallerFile'
+
+    // 1) NeoForge installer -> embedded/neoforge-installer.jar.bin
+    from(installerFile) {
+        into 'embedded'
+        rename { 'neoforge-installer.jar.bin' }
+    }
+
+    // 2) Mods folder -> embedded/mods/*.jar.bin
+    from('mods') {
+        include '**/*.jar'
+        into 'embedded/mods'
+        rename { String n -> n.replaceAll(/\.jar$/, '.jar.bin') }
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+/** Fat, runnable jar */
+tasks.shadowJar {
+    archiveFileName.set('HFD-Installer.jar')
+    manifest { attributes 'Main-Class': 'net.anatomyworld.hfd.Main' }
+    dependsOn tasks.processResources
+    // keep off up-to-date caching while iterating
+    outputs.upToDateWhen { false }
+}
+
+/** Ensure the jar contains our renamed installer */
+tasks.register('checkInstallerInJar') {
+    dependsOn tasks.shadowJar
+    doLast {
+        def jarFile = tasks.shadowJar.archiveFile.get().asFile
+        def found = zipTree(jarFile).matching { include 'embedded/neoforge-installer.jar.bin' }.files
+        if (found.empty) throw new GradleException("HFD-Installer.jar is missing embedded/neoforge-installer.jar.bin")
+    }
+}
+
+tasks.build { dependsOn tasks.checkInstallerInJar }
+tasks.jar { enabled = false } // don't produce the thin jar
