@@ -4,12 +4,6 @@
     "cleanup": ["^voicechat-.*\\.jar$"],
     "sources": [
       {
-        "type": "modrinth_exact",
-        "slug": "simple-voice-chat",
-        "version": "neoforge-${mc}-2.5.36",
-        "requireLoader": "neoforge"
-      },
-      {
         "type": "modrinth_filtered",
         "slug": "simple-voice-chat",
         "loader": "neoforge",
@@ -17,6 +11,19 @@
         "requireLoader": "neoforge"
       }
     ]
+  },
+  {
+    "name": "AutoModpack",
+    "cleanup": ["^automodpack-.*\\.jar$"],
+    "sources": [
+      {
+        "type": "modrinth_filtered",
+        "slug": "automodpack",
+        "loader": "neoforge",
+        "mc": "${mc}",
+        "requireLoader": "neoforge"
+      }
+    ]
   }
-
 ]
+
