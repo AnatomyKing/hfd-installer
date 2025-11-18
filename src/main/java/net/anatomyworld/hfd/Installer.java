@@ -14,19 +14,35 @@ public class Installer extends Main {
         log.line("Minecraft dir: " + mc + "\n(Close the Minecraft Launcher before installing.)");
 
         // 1) Ensure NeoForge base exists (run embedded installer if needed)
+        // 1) Ensure NeoForge base exists (run embedded installer if needed)
         String neo = findNeoForgeId(mc);
         if (neo == null || (REQUIRED_NEOFORGE_ID != null && !REQUIRED_NEOFORGE_ID.equals(neo))) {
             if (neo != null) log.line("Found '" + neo + "' but require '" + REQUIRED_NEOFORGE_ID + "'. Reinstalling…");
-            log.line("Running embedded NeoForge installer…");
-            Path inst = locateBundledInstaller(log);
-            if (inst == null) throw new IllegalStateException("No embedded neoforge-installer.jar.bin found in the installer JAR.");
-            runInstallerJar(inst, log);
-            neo = findNeoForgeId(mc);
-            if (neo == null || (REQUIRED_NEOFORGE_ID != null && !REQUIRED_NEOFORGE_ID.equals(neo))) {
-                throw new IllegalStateException("NeoForge not detected after running installer.");
+
+            Path temp = null;
+            try {
+                temp = Files.createTempDirectory("hfd-install-");
+
+                // Extract JRE 21 image (bundled via resources) to temp
+                Path jre = PortableJava.extractJreToTemp(log);
+
+                // Extract the embedded official NeoForge installer JAR to temp
+                Path installerJar = PortableJava.extractInstallerJar(temp, log);
+
+                // Run it (GUI opens). If NeoForge ever documents a client CLI, pass args here.
+                int code = PortableJava.runJar(jre, installerJar, List.of(), log);
+                log.line("NeoForge installer exit code: " + code);
+
+                neo = findNeoForgeId(mc);
+                if (neo == null || (REQUIRED_NEOFORGE_ID != null && !REQUIRED_NEOFORGE_ID.equals(neo))) {
+                    throw new IllegalStateException("NeoForge not detected after running installer.");
+                }
+            } finally {
+                PortableJava.deleteRecursively(temp);
             }
         }
         log.line("Using base: " + neo);
+
 
         // 2) Create child version that inherits from NeoForge
         Path childDir = mc.resolve("versions").resolve(CHILD_VERSION_ID);

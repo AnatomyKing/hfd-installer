@@ -63,11 +63,10 @@ tasks.shadowJar {
     archiveFileName.set('HFD-Installer.jar')
     manifest { attributes 'Main-Class': 'net.anatomyworld.hfd.Main' }
     dependsOn tasks.processResources
-    // keep off up-to-date caching while iterating
     outputs.upToDateWhen { false }
 }
 
-/** Ensure the jar contains our renamed installer */
+/** Ensure the jar contains our embedded installer */
 tasks.register('checkInstallerInJar') {
     dependsOn tasks.shadowJar
     doLast {
@@ -78,4 +77,4 @@ tasks.register('checkInstallerInJar') {
 }
 
 tasks.build { dependsOn tasks.checkInstallerInJar }
-tasks.jar { enabled = false } // don't produce the thin jar
+tasks.jar { enabled = false }
